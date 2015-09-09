@@ -48,6 +48,8 @@ class Capsule(object):
             parse_grads = lambda x:x
         self.parse_grads = parse_grads
 
+        self.shared_vars = []
+
 
     def get_state(self):
         return [param.get_value() for param in self.all_params]
@@ -96,6 +98,7 @@ class Capsule(object):
 
         if self.batch_optimizer.whole_dataset_in_device is True:
             V_device = {name: theano.shared(value, borrow=True) for name, value in V.items()}
+            self.shared_vars.append(V_device)
             bi = self.batch_iterator(self.batch_optimizer.batch_size,
                                      self.nb_batches)
             V_device_transformed = bi.transform(batch_index, V_device)

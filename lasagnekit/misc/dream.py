@@ -25,6 +25,7 @@ def build_dreamer(model,
                   loss_function=None,
                   rng=None,
                   model_input=None,
+                  parse_grads=None,
                   input_type=T.matrix):
     if batch_optimizer is None:
         batch_optimizer = BatchOptimizer()
@@ -42,9 +43,9 @@ def build_dreamer(model,
     if model_input is None:
         def model_input(inp):
             return inp
-    
-    def parse_grads(grads):
-        return [grad  for grad in grads]
+    if parse_grads is None: 
+        def parse_grads(grads):
+            return [grad  for grad in grads]
 
     def loss(m, tensors):
         #inputs_ = T.exp(inputs)

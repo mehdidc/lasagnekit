@@ -69,8 +69,14 @@ def get_pydot_graph(layers, output_shape=True, verbose=False):
     for i, layer in enumerate(layers):
         layer_type = '{0}'.format(layer.__class__.__name__)
         key = repr(layer)
-        label = layer_type
+        label = ""
         color = get_hex_color(layer_type)
+
+        if hasattr(layer, "name") and layer.name is not None:
+            label += " {0}, ".format(layer.name)
+
+        label += layer_type
+
         if verbose:
             for attr in ['num_filters', 'num_units', 'ds',
                          'filter_shape', 'stride', 'strides', 'p']:
