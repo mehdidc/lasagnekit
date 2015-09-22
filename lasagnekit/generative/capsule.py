@@ -71,8 +71,21 @@ class Capsule(object):
             self._build(V)
         self.batch_optimizer.optimize(self.nb_batches, self.iter_update_batch)
         return self
+    
+    def _build_functions(self):
+        for name, attrs in self.functions.items():
+
+            params = attrs.get("params")
+            params_tensors = [self.v_tensors[p] for p in params]
+            func = theano.function(
+                    params_tensors,
+                    attrs.get("get_output")(self.model, *params_tensors)
+            )
+            setattr(self, name, func)
+
 
     def _build(self, V):
+        self._build_functions()
         v_tensors = self.v_tensors
         all_params = self.model.get_all_params()
         all_params_regularizable = self.model.get_all_params(regularizable=True)
@@ -126,15 +139,6 @@ class Capsule(object):
                 return iter_update(*params)
         self.iter_update_batch = iter_update_batch
 
-        for name, attrs in self.functions.items():
-
-            params = attrs.get("params")
-            params_tensors = [v_tensors[p] for p in params]
-            func = theano.function(
-                    params_tensors,
-                    attrs.get("get_output")(self.model, *params_tensors)
-            )
-            setattr(self, name, func)
 
     def __del__(self):
         #https://github.com/Lasagne/Lasagne/issues/311
