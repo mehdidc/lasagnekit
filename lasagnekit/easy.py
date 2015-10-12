@@ -390,7 +390,6 @@ class SimpleNeuralNet(object):
         if self.is_classification is True:
             y_dim = len(set(y.flatten().tolist()))
         else:
-            y = np.atleast_2d(y).T
             y_dim = y.shape[1]
 
         self._prediction_layer = self._build_model(y_dim)
