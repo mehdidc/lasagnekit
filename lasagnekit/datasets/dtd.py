@@ -26,12 +26,12 @@ class DTD(object):
         for image in images:
             category_name = re.match(os.getenv("DATA_PATH") + "/textures-dtd/images/(.*)/.*jpg", image).groups(1)[0]
             image = imread(image)
-            image = resize(image, (self.h, self.w), preserve_range=True)
+            image = resize(image, (self.h, self.w))
             X.append(image)
             y.append(category_name)
         X = np.array(X).astype(np.float32)
+        X = X.transpose((0, 2, 3, 1))
         X = lasagnekit.easy.linearize(X)
-        X /= 255.
         y = np.array(y)
         self.img_dim = (3, self.h, self.w)
         self.X = X

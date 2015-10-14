@@ -45,9 +45,11 @@ class Rescaled(object):
                     np.save(name, X_b)            
                 self.X = X_b
                 self.y = self.dataset.y
+
+            self.img_dim = self.X.shape[1:]
         else:
             self.X = X_orig
             self.y = self.dataset.y
+            self.img_dim = self.dataset.img_dim
         
-        self.img_dim = self.X.shape[1:]
         self.X = linearize(self.X)
