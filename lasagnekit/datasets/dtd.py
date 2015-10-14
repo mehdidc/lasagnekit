@@ -30,7 +30,7 @@ class DTD(object):
             X.append(image)
             y.append(category_name)
         X = np.array(X).astype(np.float32)
-        X = X.transpose((0, 2, 3, 1))
+        X = X.transpose((0, 3, 1, 2))
         X = lasagnekit.easy.linearize(X)
         y = np.array(y)
         self.img_dim = (3, self.h, self.w)
