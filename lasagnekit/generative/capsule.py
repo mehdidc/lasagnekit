@@ -65,6 +65,8 @@ class Capsule(object):
         V = V_
         if "X" in V:
             X = V["X"]
+        else:
+            X = V[V.keys()[0]]
         self.nb_batches = get_nb_batches(X.shape[0],
                                          self.batch_optimizer.batch_size)
         if self.iter_update_batch is None:
