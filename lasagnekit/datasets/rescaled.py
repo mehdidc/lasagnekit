@@ -33,8 +33,13 @@ class Rescaled(object):
                 elif len(self.dataset.img_dim) == 2:
                     shape = tuple([X_orig.shape[0], w, h])
                 X_b = np.empty(shape)
+                
+                if len(self.dataset.img_dim) == 3:
+                    shape_resize = [orig_shape[1], w, h]
+                elif len(self.dataset.img_dim) == 2:
+                    shape_resize = (w, h)
                 for i in range(X_b.shape[0]):
-                    X_b[i] = resize(X_orig_reshaped[i], (w, h), preserve_range=True)
+                    X_b[i] = resize(X_orig_reshaped[i], shape_resize, preserve_range=True)
                 X_b = X_b.astype(np.float32)
                 if self.cache == True:
                     np.save(name, X_b)            
