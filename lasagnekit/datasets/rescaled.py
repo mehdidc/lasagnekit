@@ -19,7 +19,6 @@ class Rescaled(object):
             color, real_w, real_h = self.dataset.img_dim
 
         X_orig = self.dataset.X
-
         if (w, h) != (real_w, real_h):
             name = "{0}-{1}x{2}.npy".format(str(self.dataset.__class__), w, h)
             if os.path.exists(name) and self.cache == True:
