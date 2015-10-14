@@ -57,9 +57,3 @@ class InfiniteImageDataset(object):
 
         if self.initial_y is not None:
             self.y = self.initial_y[s]
-
-if __name__ == "__main__":
-    import numpy as np
-    from skimage.data import lena
-    X = lena()[np.newaxis, :]
-    translate_f(X, rgb=True)

@@ -15,5 +15,6 @@ class NotMNIST(object):
         y = data['labels']
         X = lasagnekit.easy.linearize(np.array(list(X)))
         X = X.astype(np.float32) / 255.
+        y = y.astype(np.int32)
         self.X = X
         self.y = y

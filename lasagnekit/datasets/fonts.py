@@ -67,10 +67,11 @@ class Fonts(object):
                     print 'warning : unkown label...'
                     new_labels.append(0)
             labels = np.array(new_labels)
+            labels = labels.astype(np.int32)
             y_labels = 26
         else:
             y_labels = None
 
         self.X = data.astype(np.float32) / 255.
         self.y = labels
-
+        self.output_dim = y_labels

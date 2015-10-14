@@ -23,5 +23,7 @@ class MNIST(object):
         X = lasagnekit.easy.linearize(X)
         X = X.astype(np.float32) / 255.
         y = np.array(y)[:, 0]
+        y = y.astype(np.int32)
+        self.output_dim = 10
         self.X = X
         self.y = y
