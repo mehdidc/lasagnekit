@@ -22,7 +22,6 @@ class Cached(object):
 
         if os.path.exists(filename):
             data = pickle.load(open(filename))
-            print(data.keys())
             self.dataset.__dict__.update(data)
         else:
             self.dataset.load()
@@ -34,3 +33,5 @@ class Cached(object):
             self.X = self.dataset.X
         if hasattr(self.dataset, "y"):
             self.y = self.dataset.y
+        if hasattr(self.dataset, "img_dim"):
+            self.img_dim = self.dataset.img_dim

@@ -24,4 +24,4 @@ class Faces(object):
 
         self.img_dim = X.shape[1:]
         X = lasagnekit.easy.linearize(X)
-        self.X = X
+        self.X = X.astype(np.float32)
