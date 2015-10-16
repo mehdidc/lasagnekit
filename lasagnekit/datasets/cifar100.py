@@ -2,6 +2,7 @@ import os
 import lasagnekit
 import numpy as np
 
+
 class Cifar100(object):
 
     def __init__(self, which='all', coarse_label=False):
@@ -24,13 +25,14 @@ class Cifar100(object):
                 y = data['fine_labels']
             X_all.append(X)
             y_all.append(y)
-        
-        
+
+
         X = np.concatenate(X_all, axis=0)
         y = np.concatenate(y_all, axis=0)
 
         X = lasagnekit.easy.linearize(X)
         X = X.astype(np.float32) / 255.
         y = np.array(y).astype(np.int32)
+        self.img_dim = (3, 32, 32)
         self.X = X
         self.y = y

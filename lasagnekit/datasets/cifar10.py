@@ -16,7 +16,7 @@ class Cifar10(object):
         # either batch_indexes or train_or_test must have a value, not both in the same time
         assert ( (batch_indexes is None and train_or_test is not None) or
                  (batch_indexes is not None and train_or_test is None) )
-    
+
         if batch_indexes is not None:
             pass
         else:
@@ -28,12 +28,12 @@ class Cifar10(object):
         self.data_filenames = map(lambda i:Cifar10.BATCH_INDEX_MAPPING[i], batch_indexes)
 
     def load(self):
-        
+
         nb_batches = len(self.data_filenames)
         nb_examples = nb_batches * Cifar10.NB_EXAMPLES_PER_BATCH
         X = np.zeros( (nb_examples, 3072)  )
         y = np.zeros( (nb_examples,) )
-    
+
         start = 0
         end = Cifar10.NB_EXAMPLES_PER_BATCH
         for data_filename in self.data_filenames:
@@ -42,6 +42,6 @@ class Cifar10(object):
             y[start:end] = file_content.get("labels")
             start = end
             end += Cifar10.NB_EXAMPLES_PER_BATCH
-
+        self.img_dim = (3, 32, 32)
         self.X = X.astype(np.float32)
         self.y = y.astype(np.int32)

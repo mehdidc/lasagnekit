@@ -17,7 +17,7 @@ class Faces(object):
         else:
             X_list = []
             for b in self.batches:
-                ds = np.load(os.path.join(os.getenv("DATA_PATH"), "faces", self.dataset, "data.npy.npz"))
+                ds = np.load(os.path.join(os.getenv("DATA_PATH"), "faces", self.dataset, "data_batch_{0}.npy.npz".format(b)))
                 X_b = ds['X_grayscale'] if self.grayscale is True else ds['X_rgb']
                 X_list.append(X_b)
             X  = np.concatenate(X_list, axis=0)
