@@ -34,7 +34,7 @@ class Fonts(object):
             if labels is not None: labels = labels[self.start:self.stop]
 
 
-        
+
         if labels is not None and self.accept_only is not None:
             mask = np.zeros(len(data)).astype(np.bool)
             for i, label in enumerate(labels):
@@ -44,20 +44,20 @@ class Fonts(object):
                     mask[i] = False
         else:
             mask = None
-    
+
         data = np.array(list(data))
 
         if labels is not None: labels = np.array(labels)
         if mask is not None:
             data = data[mask]
             if labels is not None:labels = labels[mask]
-        
+
 
         if len(data.shape) == 2:
             w = int(np.sqrt(data.shape[1]))
             data = data.reshape((data.shape[0], w, w))
         self.img_dim = data.shape[1:]
-        
+
         N = np.prod( data.shape[1:] )
         data = data.reshape(  (data.shape[0], N))
 
@@ -79,7 +79,7 @@ class Fonts(object):
         else:
             y_labels = None
 
-        self.X = data.astype(np.float32) / 255.
+        self.X = 1 - data.astype(np.float32) / 255.
         self.X = lasagnekit.easy.linearize(self.X)
         self.y = labels
         self.output_dim = y_labels

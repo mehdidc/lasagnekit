@@ -35,3 +35,6 @@ class Cached(object):
             self.y = self.dataset.y
         if hasattr(self.dataset, "img_dim"):
             self.img_dim = self.dataset.img_dim
+        if hasattr(self.dataset, "output_dim"):
+            self.output_dim = self.dataset.output_dim
+
