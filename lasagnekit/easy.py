@@ -622,7 +622,7 @@ class BatchIterator(object):
         else:
             batch_slice = slice(batch_index * self.batch_size,
                                 (batch_index+1) * self.batch_size)
-        
+
         d = OrderedDict()
         for name, value in V.items():
             d[name] = value[batch_slice]
@@ -656,7 +656,6 @@ class BatchOptimizer(object):
         self.patience_check_each = patience_check_each
 
         self.cur_best_patience_stat = None
-        self.cur_patience_nb_epochs = self.patience_nb_epochs
         self.cur_best_model = None
         self.cur_best_epoch = None
 
@@ -677,8 +676,8 @@ class BatchOptimizer(object):
 
         self.model = None
         self.stats = []
+        self.stats_batch = []
         self.func_stats = {}
-
 
     def add_stat(self, stat):
         self.func_stats.update(stat)
@@ -688,6 +687,7 @@ class BatchOptimizer(object):
         for i in range(nb_batches):
             batch_loss = iter_update_batch(i)
             losses.append(batch_loss)
+            self.monitor_batch(dict(batch_loss=batch_loss, batch_index=i, total_nb_batches=(i + 1)*(epoch+1)))
         losses = np.array(losses)
 
         stat = OrderedDict()
@@ -699,7 +699,6 @@ class BatchOptimizer(object):
             stat[name] = func()
         self.stats.append(stat)
         return stat
-
 
     def quitter(self, update_status):
         cur_epoch = len(self.stats) - 1
@@ -715,23 +714,19 @@ class BatchOptimizer(object):
             else:
                 first_time = False
 
-            if cur_patience_stat < self.cur_best_patience_stat or first_time:
+            thresh = self.patience_progression_rate_threshold
+            if cur_patience_stat < self.cur_best_patience_stat * thresh or first_time:
 
-                if cur_patience_stat < self.cur_best_patience_stat * self.patience_progression_rate_threshold:
-                    self.cur_patience_nb_epochs += self.patience_nb_epochs
-                    if self.verbose >= 2:
-                        print("good...increasing patience to {0}".format(self.cur_patience_nb_epochs))
-
-
+                if self.verbose >= 2:
+                    fmt = "--Early stopping-- good we have a new best value : {0}={1}, last best : epoch {2}, value={3}"
+                    print(fmt.format(self.patience_stat, cur_patience_stat, self.cur_best_epoch, self.cur_best_patience_stat))
                 self.cur_best_epoch = cur_epoch
                 self.cur_best_patience_stat = cur_patience_stat
-
                 if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
                     self.cur_best_model = self.model.get_state()
                 else:
                     self.cur_best_model = pickle.dumps(self.model.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
-
-            if cur_epoch >= self.cur_patience_nb_epochs:
+            if (cur_epoch - self.cur_best_epoch) >= self.patience_nb_epochs:
                 finish = True
                 if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
                     self.model.set_state(self.cur_best_model)
@@ -760,6 +755,12 @@ class BatchOptimizer(object):
                     stat_ = stat
                 print(tabulate([stat_], headers="keys"), file=self.verbose_out)
 
+    def monitor_batch(self, update_status):
+        if self.verbose >= 2:
+            fmt = "batch #{0} loss : {1}, #{2} mini-batches processed"
+            print(fmt.format(update_status["batch_index"],
+                             update_status["batch_loss"],
+                             update_status["total_nb_batches"]))
 
     def observer(self, monitor_output):
         pass
@@ -897,6 +898,18 @@ def get_nb_batches(nb_examples, batch_size):
     if (nb_examples  % batch_size) > 0:
         nb_batches += 1
     return nb_batches
+
+
+def iterate_minibatches(nb_inputs, batchsize, shuffle=False):
+    if shuffle:
+        indices = np.arange(nb_inputs)
+        np.random.shuffle(indices)
+    for start_idx in range(0, nb_inputs- batchsize + 1, batchsize):
+        if shuffle:
+            excerpt = indices[start_idx:start_idx + batchsize]
+        else:
+            excerpt = slice(start_idx, start_idx + batchsize)
+        yield excerpt
 
 if __name__ == "__main__":
 

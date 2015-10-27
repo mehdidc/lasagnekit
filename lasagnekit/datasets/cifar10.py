@@ -43,5 +43,6 @@ class Cifar10(object):
             start = end
             end += Cifar10.NB_EXAMPLES_PER_BATCH
         self.img_dim = (3, 32, 32)
+        self.output_dim = 10
         self.X = X.astype(np.float32)
         self.y = y.astype(np.int32)
