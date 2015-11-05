@@ -53,7 +53,7 @@ class Capsule(object):
 
     def get_state(self):
         return [param.get_value() for param in self.all_params]
-    
+
     def set_state(self, state):
         for cur_param, state_param in zip(self.all_params, state):
             cur_param.set_value(state_param, borrow=True)
@@ -67,13 +67,13 @@ class Capsule(object):
             X = V["X"]
         else:
             X = V[V.keys()[0]]
-        self.nb_batches = get_nb_batches(X.shape[0],
+        self.nb_batches = get_nb_batches(len(X),
                                          self.batch_optimizer.batch_size)
         if self.iter_update_batch is None:
             self._build(V)
         self.batch_optimizer.optimize(self.nb_batches, self.iter_update_batch)
         return self
-    
+
     def _build_functions(self):
         for name, attrs in self.functions.items():
 
@@ -103,7 +103,7 @@ class Capsule(object):
         self.loss = loss
 
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
-        
+
         grads = T.grad(loss, all_params)
         grads = self.parse_grads(grads)
         updates.update(opti_function(grads, all_params, **opti_kwargs))
