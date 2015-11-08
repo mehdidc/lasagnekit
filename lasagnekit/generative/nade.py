@@ -101,7 +101,7 @@ if __name__ == "__main__":
     from sklearn.datasets import load_digits
     from sklearn.utils import shuffle
     from lasagnekit.datasets.mnist import MNIST
-    from lasagne.misc.plot_weights import grid_plot
+    from lasagnekit.misc.plot_weights import grid_plot
     from lasagnekit.easy import get_2d_square_image_view
     from collections import OrderedDict
     import matplotlib.pyplot as plt

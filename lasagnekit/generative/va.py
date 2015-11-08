@@ -50,25 +50,50 @@ def z_from_epsilon(epsilon, z_mean, z_log_sigma):
     z = z_mean_ + T.exp(z_log_sigma_) * epsilon
     return z
 
+
+def decoder_loss_function_binary(X, X_params):
+    return decoder_term_bernoulli(X, X_params[0])
+
+
+def sampler_binary(rng, params):
+    return 1*(rng.uniform(size=params[0].shape)) < params[0]
+
 Binary = dict(
     mean_param_index=0,
     nonlinearity=nonlinearities.sigmoid,
-    decoder_loss_function=lambda X, X_params: decoder_term_bernoulli(X, X_params[0]),
-    sampler=lambda rng, params : 1*(rng.uniform(size=params[0].shape)) < params[0]
+    decoder_loss_function=decoder_loss_function_binary,
+    sampler=sampler_binary
 )
+
+
+def decoder_loss_function_real(X, X_params):
+    return decoder_term_gaussian(X, X_params[0], X_params[1])
+
+
+def sampler_real(rng, params):
+    return params[0]
 
 Real = dict(
     mean_param_index=0,
     nonlinearity=nonlinearities.linear,
-    decoder_loss_function=lambda X, X_params: decoder_term_gaussian(X, X_params[0], X_params[1]),
-    sampler = lambda rng, params: params[0]
+    decoder_loss_function=decoder_loss_function_real,
+    sampler=sampler_real
 )
 
+
+def decoder_loss_function_categorical(X, X_params):
+    return decoder_term_categorical(X, X_params[0])
+
+
+def sampler_categorical(rng, params):
+    return params[0].argmax(axis=2)
+
+
 Categorical = dict(
-        mean_param_index=0,
-        nonlinearity=nonlinearities.linear,
-        decoder_loss_function=lambda X, X_params: decoder_term_categorical(X, X_params[0]),
-        sampler=lambda rng, params: params[0].argmax(axis=2)
+    mean_param_index=0,
+    nonlinearity=nonlinearities.linear,
+    decoder_loss_function=lambda X, X_params: decoder_term_categorical(X, X_params[0]),
+    sampler=sampler_categorical
 )
 
 
@@ -106,7 +131,7 @@ class VariationalAutoencoder(object):
 
     def get_state(self):
         return [param.get_value() for param in self.all_params]
-    
+
     def set_state(self, state):
         for cur_param, state_param in zip(self.all_params, state):
             cur_param.set_value(state_param, borrow=True)
@@ -162,8 +187,9 @@ class VariationalAutoencoder(object):
         loss = loss_general(X_batch_for_loss, X_params,
                             self.input_type.get("decoder_loss_function"),
                             z_mean, z_log_sigma,
-                            self._prior_z_mean, self._prior_z_log_sigma).mean(axis=0)
+                            self._prior_z_mean, self._prior_z_log_sigma)
         self.get_likelihood_lower_bound = theano.function([X_batch], loss)
+        loss = loss.mean(axis=0)
         # the decode function
         Z_batch = self.Z_type('Z_batch')
         X_params_from_z = self.nnet_z_to_x.get_output(Z_batch, deterministic=True)
@@ -182,12 +208,13 @@ class VariationalAutoencoder(object):
         z_log_sigma_shape = [z_log_sigma.shape[0], 1] + [z_log_sigma.shape[i] for i in range(1, z_log_sigma.ndim)]
         log_q_z_given_x = decoder_term_gaussian(z, z_mean.reshape(z_mean_shape), z_log_sigma.reshape(z_log_sigma_shape))
         log_p_z = decoder_term_gaussian(z, self._prior_z_mean, self._prior_z_log_sigma)
-        log_likelihood_approximation =  -(easy.log_sum_exp(log_p_z + log_p_x_given_z - log_q_z_given_x, axis=1) - T.log(nb_z_samples)).mean()
-        self.log_likelihood_approximation_function = theano.function([X_batch], log_likelihood_approximation)
+        log_likelihood_approximation =  -(easy.log_sum_exp(log_p_z + log_p_x_given_z - log_q_z_given_x, axis=1) - T.log(nb_z_samples))
+        self.log_likelihood_approximation_function = theano.function([X_batch],
+                                                                     log_likelihood_approximation)
 
         # Parameters and optimization
         all_params = (self.nnet_x_to_z.get_all_params() +
-                      self.nnet_z_to_x.get_all_params() 
+                      self.nnet_z_to_x.get_all_params()
                      + [self._prior_z_mean, self._prior_z_log_sigma])
         self.all_params = all_params
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
