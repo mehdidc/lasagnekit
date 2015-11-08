@@ -1,7 +1,7 @@
 from __future__ import print_function
 from collections import Iterable, OrderedDict
 
-import cPickle as pickle
+import pickle
 import copy
 import numpy as np
 import lasagne
@@ -271,11 +271,11 @@ class SimpleNeuralNet(object):
         return d
 
     def get_params(self, deep=True):
-        return dict(filter(lambda (k, v): not k.startswith("_"), self.__dict__.items()))
+        return dict(filter(lambda a: not a[0].startswith("_"), self.__dict__.items()))
 
     def set_params(self, **params):
         params_ = dict(
-            filter(lambda (k, v): not k.startswith("_"), params.items()))
+            filter(lambda a: not a[0].startswith("_"), params.items()))
         self.__dict__.update(params_)
 
     def _build_model(self, y_dim):
@@ -628,7 +628,6 @@ class BatchIterator(object):
             d[name] = value[batch_slice]
         return d
 
-import cPickle as pickle
 import sys
 
 class BatchOptimizer(object):
@@ -910,6 +909,10 @@ def iterate_minibatches(nb_inputs, batchsize, shuffle=False):
         else:
             excerpt = slice(start_idx, start_idx + batchsize)
         yield excerpt
+
+def compute_over_minibatches(function, nb_inputs, batchsize, shuffle=False):
+    for sl in iterate_minibatches(nb_inputs, batchsize, shuffle=shuffle):
+        yield function(sl)
 
 if __name__ == "__main__":
 
