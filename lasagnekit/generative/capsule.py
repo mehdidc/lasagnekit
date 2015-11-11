@@ -35,7 +35,6 @@ class Capsule(object):
         self.functions = functions
 
         self.nb_batches = None
-        self.iter_update_batch = None
         self.batch_optimizer.model = self
         self.model.capsule = self
 
@@ -43,11 +42,6 @@ class Capsule(object):
         for name, var in self.input_variables.items():
             v_tensors[name] = var.get("tensor_type", T.matrix)()
         self.v_tensors = v_tensors
-
-        if parse_grads is None:
-            parse_grads = lambda x:x
-        self.parse_grads = parse_grads
-
         self.shared_vars = []
 
 
@@ -69,8 +63,7 @@ class Capsule(object):
             X = V[V.keys()[0]]
         self.nb_batches = get_nb_batches(len(X),
                                          self.batch_optimizer.batch_size)
-        if self.iter_update_batch is None:
-            self._build(V)
+        self._build(V)
         self.batch_optimizer.optimize(self.nb_batches, self.iter_update_batch)
         return self
 
@@ -105,7 +98,6 @@ class Capsule(object):
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
 
         grads = T.grad(loss, all_params)
-        grads = self.parse_grads(grads)
         updates.update(opti_function(grads, all_params, **opti_kwargs))
         self.updates = updates
 
@@ -125,6 +117,8 @@ class Capsule(object):
                 givens=givens,
                 on_unused_input='warn'
             )
+            self.bi = bi
+            self.iter_update_batch = iter_update_batch
         else:
             L = v_tensors.values()
             iter_update = theano.function(
@@ -135,11 +129,14 @@ class Capsule(object):
             )
             bi = self.batch_iterator(self.batch_optimizer.batch_size,
                                      self.nb_batches)
-            def iter_update_batch(batch_index):
-                V_transformed = bi.transform(batch_index, V)
-                params = V_transformed.values()
-                return iter_update(*params)
-        self.iter_update_batch = iter_update_batch
+            self.bi = bi
+            self.V = V
+            self.iter_update = iter_update
+
+    def iter_update_batch(self, batch_index):
+        V_transformed = self.bi.transform(batch_index, self.V)
+        params = V_transformed.values()
+        return self.iter_update(*params)
 
 
     def __del__(self):

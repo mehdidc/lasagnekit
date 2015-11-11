@@ -33,6 +33,8 @@ class Autoencoder(object):
         self.encode_function = None  # only available after fit
         self.decode_function = None  # only available after fit
         self.predict_function = None # only available after fit
+        self.iter_update_batch = None
+        self.iter_update = None
 
         self.get_loss = None
 
@@ -53,6 +55,21 @@ class Autoencoder(object):
                  (y is not None and self.nnet_x_to_y is not None))
 
         nb_batches = easy.get_nb_batches(len(X), self.batch_optimizer.batch_size)
+
+        if self.iter_update_batch is not None:
+            if y is not None:
+                def iter_update_batch(batch_index):
+                    sl = slice(batch_index * self.batch_optimizer.batch_size,
+                            (batch_index+1) * self.batch_optimizer.batch_size)
+                    return self.iter_update(X[sl], y[sl])
+            else:
+                def iter_update_batch(batch_index):
+                    sl = slice(batch_index * self.batch_optimizer.batch_size,
+                            (batch_index+1) * self.batch_optimizer.batch_size)
+                    return self.iter_update(X[sl])
+
+            self.batch_optimizer.optimize(nb_batches, iter_update_batch)
+            return
 
         X_batch = self.X_type('X_batch')
         if y is not None:
@@ -171,6 +188,8 @@ class Autoencoder(object):
                     sl = slice(batch_index * self.batch_optimizer.batch_size,
                               (batch_index+1) * self.batch_optimizer.batch_size)
                     return iter_update(X[sl])
+        self.iter_update_batch = iter_update_batch
+        self.iter_update = iter_update
         self.batch_optimizer.optimize(nb_batches, iter_update_batch)
         return self
 
