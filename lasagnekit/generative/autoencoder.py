@@ -51,8 +51,8 @@ class Autoencoder(object):
     def fit(self, X, y=None):
         assert ( (y is None and self.nnet_x_to_y is None) or
                  (y is not None and self.nnet_x_to_y is not None))
-             
-        nb_batches = easy.get_nb_batches(X.shape[0], self.batch_optimizer.batch_size)
+
+        nb_batches = easy.get_nb_batches(len(X), self.batch_optimizer.batch_size)
 
         X_batch = self.X_type('X_batch')
         if y is not None:
@@ -78,7 +78,7 @@ class Autoencoder(object):
         if y is not None:
             y_hat, = self.nnet_x_to_y.get_output(X_batch_for_encoder)
             y_hat_without_noise, = self.nnet_x_to_y.get_output(X_batch)
-            
+
             y_hat_without_noise_pred = T.argmax(y_hat_without_noise, axis=1)
             self.predict_function = theano.function([X_batch], y_hat_without_noise_pred)
 
@@ -98,10 +98,10 @@ class Autoencoder(object):
         all_params = list(set(all_params))
 
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
-        
+
         if self.walkback == 1:
             loss_reconstruction = self.loss_function(X_batch, x_hat).mean()
-            
+
             if y is not None:
                 loss_accuracy = self.loss_function_y(y_batch, y_hat).mean()
             else:
@@ -117,7 +117,7 @@ class Autoencoder(object):
             loss_representation = 0.
 
         loss = loss_reconstruction +  loss_accuracy + loss_representation
-        
+
         if y is None:
             self.get_loss = theano.function([X_batch], loss)
         else:
@@ -132,7 +132,7 @@ class Autoencoder(object):
             X = theano.shared(X, borrow=True)
             if y is not None:
                 y = theano.shared(y, borrow=True)
-                
+
                 iter_update_batch = theano.function(
                     [batch_index], loss,
                     updates=updates,
@@ -153,7 +153,7 @@ class Autoencoder(object):
         else:
             if y is not None:
                 iter_update = theano.function(
-                        [X_batch, y_batch], 
+                        [X_batch, y_batch],
                         loss,
                         updates=updates
                 )
@@ -163,7 +163,7 @@ class Autoencoder(object):
                     return iter_update(X[sl], y[sl])
             else:
                 iter_update = theano.function(
-                        [X_batch], 
+                        [X_batch],
                         loss,
                         updates=updates
                 )
@@ -187,7 +187,7 @@ class Autoencoder(object):
         for i in xrange(nb_iterations):
             X = sampling_function(self.recover_function(X))
         return X
-    
+
     def predict(self, X):
         assert self.predict_function is not None
         return self.predict_function(X)
@@ -208,8 +208,8 @@ def greedy_encode(models, X):
     return x
 
 
-def greedy_learn_with_validation(models, splits, X, y=None, 
-                                 report_rec_error=True, 
+def greedy_learn_with_validation(models, splits, X, y=None,
+                                 report_rec_error=True,
                                  report_accuracy=False,
                                  report_supervised_error=True,
                                  stat_train=None,

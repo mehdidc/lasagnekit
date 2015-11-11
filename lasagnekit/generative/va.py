@@ -144,7 +144,7 @@ class VariationalAutoencoder(object):
         self._prior_z_mean = theano.shared(np.zeros(z_shape, dtype=theano.config.floatX))
         self._prior_z_log_sigma = theano.shared(np.zeros(z_shape, dtype=theano.config.floatX))
 
-        nb_batches = easy.get_nb_batches(X.shape[0], self.batch_optimizer.batch_size)
+        nb_batches = easy.get_nb_batches(len(X), self.batch_optimizer.batch_size)
 
         #perm = self.rng.permutation(n=X.shape[0])
         #X = theano.shared(X, borrow=True)

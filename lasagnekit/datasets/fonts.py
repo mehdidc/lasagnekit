@@ -71,7 +71,7 @@ class Fonts(object):
                     c_id = ord(c) - ord('a')
                     new_labels.append(c_id)
                 else:
-                    print 'warning : unkown label...'
+                    print('warning : unkown label...')
                     new_labels.append(0)
             labels = np.array(new_labels)
             labels = labels.astype(np.int32)

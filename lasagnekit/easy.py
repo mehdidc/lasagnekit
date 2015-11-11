@@ -152,7 +152,7 @@ def get_theano_batch_variables(batch_size, prefix='', y_softmax=False):
 
 
 def main_loop(max_nb_epochs, iter_update, quitter, monitor, observer):
-    for i in xrange(max_nb_epochs):
+    for i in range(max_nb_epochs):
         update_status = iter_update(i)
         monitor_output = monitor(update_status)
         observer(monitor_output)
@@ -792,6 +792,7 @@ class LightweightModel(object):
                         for param in (
                             layers.helper.get_all_params(output_layer, **kwargs))))
 
+InputOutputMapping = LightweightModel
 
 
 
@@ -910,9 +911,18 @@ def iterate_minibatches(nb_inputs, batchsize, shuffle=False):
             excerpt = slice(start_idx, start_idx + batchsize)
         yield excerpt
 
+
 def compute_over_minibatches(function, nb_inputs, batchsize, shuffle=False):
     for sl in iterate_minibatches(nb_inputs, batchsize, shuffle=shuffle):
         yield function(sl)
+
+
+def layers_from_list_to_dict(layers_list):
+    names = dict()
+    for layer in layers_list:
+        assert layer.name is not None
+        names[layer.name] = layer
+    return names
 
 if __name__ == "__main__":
 
