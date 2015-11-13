@@ -377,6 +377,7 @@ class SimpleNeuralNet(object):
             self._class_label_encoder.fit(y)
             self.classes_ = self._class_label_encoder.classes_
             y = self._class_label_encoder.transform(y).astype(y.dtype)
+            self.y_train_transformed = y
             if y_valid is not None:
                 y_valid_transformed = self._class_label_encoder.transform(y_valid).astype(y_valid.dtype)
 
@@ -414,6 +415,8 @@ class SimpleNeuralNet(object):
             loss = T.mean(
                 t_sample_weight * T.sum((output - y_batch) ** 2, axis=1))
 
+        loss_unreg = loss
+
         all_params = layers.get_all_params(self._prediction_layer)
         if self._output_softener_coefs is not None:
             all_params.append(self._output_softener_coefs)
@@ -423,11 +426,11 @@ class SimpleNeuralNet(object):
         # regularization
         if self.L1_factor is not None:
             for L1_factor_layer, W in zip(self.L1_factor, W_params):
-                loss += L1_factor_layer * T.sum(abs(W))
+                loss = loss + L1_factor_layer * T.sum(abs(W))
 
         if self.L2_factor is not None:
             for L2_factor_layer, W in zip(self.L2_factor, W_params):
-                loss += L2_factor_layer * T.sum(W**2)
+                loss = loss + L2_factor_layer * T.sum(W**2)
 
 
         if self.optimization_method == 'nesterov_momentum':
@@ -516,7 +519,7 @@ class SimpleNeuralNet(object):
                     return iter_update_gradients(X[sl], y[sl], sample_weight[sl])
         self._iter_update_batch = iter_update_batch
         self._get_loss = theano.function(
-            [X_batch, y_batch, t_sample_weight], loss, allow_input_downcast=True)
+            [X_batch, y_batch, t_sample_weight], loss_unreg, allow_input_downcast=True)
 
         def iter_update(epoch):
             losses = []
@@ -533,8 +536,10 @@ class SimpleNeuralNet(object):
 
             d = OrderedDict()
             d["epoch"] = epoch
-            d["loss_train_std"] = losses.std()
-            d["loss_train"] = losses.mean()
+            #d["loss_train_std"] = losses.std()
+
+            #d["loss_train"] = losses.mean()
+            d["loss_train"] = self._get_loss(self.X_train, self.y_train_transformed, 1.)
 
             d["accuracy_train"] = (self.predict(self.X_train) == self.y_train).mean()
 
