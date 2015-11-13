@@ -113,7 +113,7 @@ def softmax_loss(output, t_y_batch):
     return -T.mean(T.log(output)[T.arange(t_y_batch.shape[0]), t_y_batch])
 
 
-def patience_quit(stats, label, nb_epochs_to_check, progression=0.0):
+def patience_quit(stats, label, nb_epochs_to_check, threshold=0.0):
     if len(stats) < nb_epochs_to_check:
         return False
     before = stats[-nb_epochs_to_check].get(label)
@@ -192,7 +192,7 @@ class SimpleNeuralNet(object):
                  learning_rate=0.5, momentum=0.8, max_nb_epochs=10, L1_factor=None, L2_factor=None, dropout_probs=None,
                  max_norm=None, optimization_method='adadelta',
                  patience_nb_epochs=-1,
-                 patience_threshold_progression_rate=0.0,
+                 patience_threshold_progression_rate=1.,
                  validation_set_ratio=None,
                  initweights_list=None,
                  initbiases_list=None,
@@ -261,6 +261,9 @@ class SimpleNeuralNet(object):
         self._stats = None
         self._class_label_encoder = None
 
+        self.cur_best_patience_stat = None
+        self.cur_best_model = None
+        self.cur_best_epoch = None
 
         self._output_softener_coefs = None
 
@@ -548,14 +551,45 @@ class SimpleNeuralNet(object):
             return d
 
         def quitter(update_status):
-            if update_status["epoch"] < self.min_nb_epochs:
-                return False
+            cur_epoch = len(self._stats) - 1
             if self.patience_nb_epochs > 0:
-                return patience_quit(self._stats, self.patience_stat,
-                                     self.patience_nb_epochs,
-                                     self.patience_threshold_progression_rate)
+                # patience heuristic (for early stopping)
+                cur_patience_stat = update_status[self.patience_stat]
+
+                if self.cur_best_patience_stat is None:
+                    self.cur_best_patience_stat = cur_patience_stat
+                    first_time = True
+                else:
+                    first_time = False
+
+                thresh = self.patience_progression_rate_threshold
+                if cur_patience_stat < self.cur_best_patience_stat * thresh or first_time:
+
+                    if self.verbose >= 2:
+                        fmt = "--Early stopping-- good we have a new best value : {0}={1}, last best : epoch {2}, value={3}"
+                        print(fmt.format(self.patience_stat, cur_patience_stat, self.cur_best_epoch, self.cur_best_patience_stat))
+                    self.cur_best_epoch = cur_epoch
+                    self.cur_best_patience_stat = cur_patience_stat
+                    if hasattr(self, "set_state") and hasattr(self, "get_state"):
+                        self.cur_best_model = self.get_state()
+                    else:
+                        self.cur_best_model = pickle.dumps(self.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
+                if (cur_epoch - self.cur_best_epoch) >= self.patience_nb_epochs:
+                    finish = True
+                    if hasattr(self, "set_state") and hasattr(self, "get_state"):
+                        self.set_state(self.cur_best_model)
+                    else:
+                        self.__dict__.update(pickle.loads(self.cur_best_model))
+
+                    self._stats = self._stats[0:self.cur_best_epoch + 1]
+                    if self.verbose >= 2:
+                        print("out of patience...take the model at epoch {0} and quit".format(self.cur_best_epoch + 1))
+                else:
+                    finish = False
+                return finish
             else:
                 return False
+
 
         def monitor(update_status):
             pass
@@ -595,8 +629,6 @@ class SimpleNeuralNet(object):
     def predict_proba(self, X):
         return self._output_function(X)
 
-
-from collections import OrderedDict
 
 class BatchIterator(object):
     def __init__(self):
