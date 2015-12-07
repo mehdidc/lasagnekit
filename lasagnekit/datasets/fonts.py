@@ -61,7 +61,7 @@ class Fonts(object):
         N = np.prod( data.shape[1:] )
         data = data.reshape(  (data.shape[0], N))
 
-
+        orig_labels = labels
         if self.labels_kind == "letters":
             new_labels = []
             for label in labels:
@@ -82,4 +82,5 @@ class Fonts(object):
         self.X = 1 - data.astype(np.float32) / 255.
         self.X = lasagnekit.easy.linearize(self.X)
         self.y = labels
+        self.y_raw = orig_labels
         self.output_dim = y_labels
