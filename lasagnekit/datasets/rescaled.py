@@ -45,3 +45,5 @@ class Rescaled(object):
             self.y = self.dataset.y
         if hasattr(self.dataset, "output_dim"):
             self.output_dim = self.dataset.output_dim
+        if hasattr(self.dataset, "y_raw"):
+            self.y_raw = self.dataset.y_raw
