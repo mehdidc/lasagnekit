@@ -1,1 +1,0 @@
-from lasagnekit import capsule
