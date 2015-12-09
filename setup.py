@@ -23,7 +23,7 @@ setup(
     platforms='any',
     packages=['lasagnekit', 'lasagnekit.misc',
               'lasagnekit.generative',
-              'lasagnekit.nnet'
+              'lasagnekit.nnet',
               'lasagnekit.datasets',
               ]
 )
