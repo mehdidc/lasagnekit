@@ -1,6 +1,7 @@
 from __future__ import print_function
 from collections import Iterable, OrderedDict
 
+import sys
 import pickle
 import copy
 import numpy as np
@@ -18,6 +19,7 @@ from sklearn.cross_validation import train_test_split
 
 
 from tabulate import tabulate
+
 
 def get_batch_slice(t_batch_index, batch_size):
     return slice(t_batch_index * batch_size, (t_batch_index + 1) * batch_size)
@@ -636,8 +638,6 @@ class SimpleNeuralNet(object):
 
 
 class BatchIterator(object):
-    def __init__(self):
-        pass
 
     def __call__(self, batch_size, nb_batches, V=None):
         self.V = V
@@ -649,23 +649,42 @@ class BatchIterator(object):
         for i in range(self.nb_batches):
             yield self.transform(i, self.V)
 
-    def transform(self, batch_index, V):
+    def get_slice(self, batch_index):
         assert self.batch_size is not None
         assert self.nb_batches is not None
-
         if isinstance(batch_index, T.TensorVariable):
             batch_slice = get_batch_slice(batch_index,
                                           self.batch_size)
         else:
             batch_slice = slice(batch_index * self.batch_size,
                                 (batch_index+1) * self.batch_size)
+        return batch_slice
 
+    def transform(self, batch_index, V):
+        batch_slice = self.get_slice(batch_index)
         d = OrderedDict()
         for name, value in V.items():
             d[name] = value[batch_slice]
         return d
 
-import sys
+
+def build_batch_iterator(transform_func):
+    class BatchIterator_(object):
+
+        def transform(self, batch_index, V):
+            return transform_func(batch_index, self.get_slice(batch_index), V)
+    return BatchIterator_()
+
+
+def build_simple_batch_iterator(transform_func):
+
+    def transform_(batch_index, batch_slice, V):
+        d = OrderedDict()
+        for name, value in V.items():
+            d[name] = transform_func(value[batch_slice])
+        return d
+    return build_batch_iterator(transform_)
+
 
 class BatchOptimizer(object):
 
@@ -823,11 +842,20 @@ class LightweightModel(object):
         return [layers.get_output(output_layer, givens, **params)
                 for output_layer in self.output_layers]
 
+    def layer_by_name(self, name):
+        layers = self.input_layers + self.output_layers
+        names = map(lambda layer: layer.name, layers)
+        idx = names.index(name)
+        if idx > 0:
+            return layers[idx]
+        else:
+            raise Exception("layer not found")
+
     def get_all_params(self, **kwargs):
         return list(set(param
                         for output_layer in self.output_layers
                         for param in (
-                            layers.helper.get_all_params(output_layer, **kwargs))))
+                        layers.helper.get_all_params(output_layer, **kwargs))))
 
 InputOutputMapping = LightweightModel
 

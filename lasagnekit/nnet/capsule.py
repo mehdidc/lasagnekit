@@ -43,6 +43,7 @@ class Capsule(object):
             v_tensors[name] = var.get("tensor_type", T.matrix)()
         self.v_tensors = v_tensors
         self.shared_vars = []
+        self.built = False
 
 
     def get_state(self):
@@ -53,6 +54,7 @@ class Capsule(object):
             cur_param.set_value(state_param, borrow=True)
 
     def fit(self, **V):
+
         V_ = OrderedDict()
         for name in self.input_variables.keys():
             V_[name] = V[name]
@@ -61,9 +63,12 @@ class Capsule(object):
             X = V["X"]
         else:
             X = V[V.keys()[0]]
+
         self.nb_batches = get_nb_batches(len(X),
                                          self.batch_optimizer.batch_size)
-        self._build(V)
+        if self.built is False:
+            self._build(V)
+        self.V = V
         self.batch_optimizer.optimize(self.nb_batches, self.iter_update_batch)
         return self
 
@@ -119,6 +124,7 @@ class Capsule(object):
             )
             self.bi = bi
             self.iter_update_batch = iter_update_batch
+            self.built = True
         else:
             L = v_tensors.values()
             iter_update = theano.function(
@@ -132,6 +138,7 @@ class Capsule(object):
             self.bi = bi
             self.V = V
             self.iter_update = iter_update
+            self.built = True
 
     def iter_update_batch(self, batch_index):
         V_transformed = self.bi.transform(batch_index, self.V)
