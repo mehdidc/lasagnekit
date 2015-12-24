@@ -1,30 +1,20 @@
 import os
-from numpy.random import RandomState
-from skimage.io import imread
-import numpy as np
+import pandas as pd
+from .imagecollection import ImageCollection
+
+synonyms = pd.read_table(os.path.join(os.getenv("DATA_PATH"),
+                         "imagenet", "words.txt"), header=None,
+                         index_col=0)
 
 
-class ImageNet(object):
+class ImageNet(ImageCollection):
+    folder = os.path.join("imagenet",
+                          "imagenet_downloader")
 
-    def __init__(self, mode="random", random_state=2, nb=100):
-        self.mode = mode
-        self.rng = RandomState(random_state)
-        self.nb = nb
+    def process_dirs(self, dirs):
+        return filter(lambda d: os.path.basename(d).startswith("n"), dirs)
 
-    def load(self):
-        path = os.path.join(os.getenv("DATA_PATH"), "imagenet",
-                            "imagenet_downloader")
-        dirs = os.path.listdir(path)
-        dirs = filter(lambda d: os.path.isdir(d), dirs)
-        dirs = self.rng.choice(dirs, size=self.nb)
-        X = []
-        y = []
-        for d in dirs:
-            filenames = os.path.listdir(path + "/" + d)
-            filename = self.rng(filenames)
-            x = imread(path + "/" + d + "/" + filename).tolist()
-            X.append(x)
-            y.append(d)
-        X = np.array(X).astype(np.float32)
-        self.X = X
-        self.y = y
+    def filename_to_label(self, directory, filename):
+        s = synonyms[1][os.path.basename(directory)]
+        s = s.split(",")
+        return s

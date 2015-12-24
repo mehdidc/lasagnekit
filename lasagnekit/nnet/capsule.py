@@ -5,6 +5,33 @@ import theano
 from ..easy import BatchOptimizer, BatchIterator, get_nb_batches
 from collections import OrderedDict
 
+from theano.printing import Print
+
+import lasagne.layers
+
+
+class DebugPrint(Print):
+
+    def __init__(self, name="", attrs=("__str__",), store=None):
+        super(DebugPrint, self).__init__(
+                message="", attrs=attrs,
+                global_fn=_print_fn)
+        if store is None:
+            store = dict()
+        self.store = store
+        self.name = name
+
+
+def _print_fn(op, xin):
+    for attr in op.attrs:
+        temp = getattr(xin, attr)
+        if callable(temp):
+            pmsg = temp()
+        else:
+            pmsg = temp
+        op.store[op.name] = pmsg
+
+
 class Capsule(object):
 
     def __init__(self,
@@ -14,7 +41,7 @@ class Capsule(object):
                  batch_iterator=None,
                  batch_optimizer=None,
                  functions=None,
-                 parse_grads=None,
+                 store_grads_params=False,
                  rng=None):
 
         self.input_variables = input_variables
@@ -25,7 +52,6 @@ class Capsule(object):
         self.batch_optimizer = batch_optimizer
         if batch_iterator is None:
             batch_iterator = BatchIterator()
-        batch_iterator.model = self
         self.batch_iterator = batch_iterator
         if rng is None:
             rng = RandomStreams(1234)
@@ -33,10 +59,9 @@ class Capsule(object):
         if functions is None:
             functions = dict()
         self.functions = functions
+        self.store_grads_params = store_grads_params
 
         self.nb_batches = None
-        self.batch_optimizer.model = self
-        self.model.capsule = self
 
         v_tensors = OrderedDict()
         for name, var in self.input_variables.items():
@@ -45,6 +70,8 @@ class Capsule(object):
         self.shared_vars = []
         self.built = False
 
+        self._grads = dict()
+        self._layers = dict()
 
     def get_state(self):
         return [param.get_value() for param in self.all_params]
@@ -54,6 +81,9 @@ class Capsule(object):
             cur_param.set_value(state_param, borrow=True)
 
     def fit(self, **V):
+        self.batch_iterator.model = self
+        self.batch_optimizer.model = self
+        self.model.capsule = self
 
         V_ = OrderedDict()
         for name in self.input_variables.keys():
@@ -70,6 +100,11 @@ class Capsule(object):
             self._build(V)
         self.V = V
         self.batch_optimizer.optimize(self.nb_batches, self.iter_update_batch)
+
+        self.batch_iterator.model = None
+        self.batch_optimizer.model = None
+        self.model.capsule = None
+
         return self
 
     def _build_functions(self):
@@ -82,7 +117,6 @@ class Capsule(object):
                     attrs.get("get_output")(self.model, *params_tensors)
             )
             setattr(self, name, func)
-
 
     def _build(self, V):
         self._build_functions()
@@ -103,19 +137,26 @@ class Capsule(object):
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
 
         grads = T.grad(loss, all_params)
+
+        # storing grads
+        if self.store_grads_params:
+            grads = [DebugPrint(name=g.name, store=self._grads)(g)
+                     for g in grads]
+        # update
         updates.update(opti_function(grads, all_params, **opti_kwargs))
         self.updates = updates
 
         batch_index = T.iscalar('batch_index')
 
         if self.batch_optimizer.whole_dataset_in_device is True:
-            V_device = {name: theano.shared(value, borrow=True) for name, value in V.items()}
+            V_device = {name: theano.shared(value, borrow=True)
+                        for name, value in V.items()}
             self.shared_vars.append(V_device)
             bi = self.batch_iterator(self.batch_optimizer.batch_size,
                                      self.nb_batches)
             V_device_transformed = bi.transform(batch_index, V_device)
             givens = {v_tensors[name]: value
-                     for name, value in V_device_transformed.items()}
+                      for name, value in V_device_transformed.items()}
             iter_update_batch = theano.function(
                 [batch_index], loss,
                 updates=updates,
@@ -145,25 +186,29 @@ class Capsule(object):
         params = V_transformed.values()
         return self.iter_update(*params)
 
+    #def __del__(self):
+    #    # https://github.com/Lasagne/Lasagne/issues/311
+    #    with self.all_params:
+    #        self.params.popitem()
 
-    def __del__(self):
-        #https://github.com/Lasagne/Lasagne/issues/311
-        with self.all_params:
-            self.params.popitem()
+
+def make_function(func, params):
+    return dict(get_output=func, params=params)
+
 
 if __name__ == "__main__":
-    from lasagnekit.easy import LightweightModel
+    from lasagnekit.easy import InputOutputMapping, make_batch_optimizer, build_batch_iterator
     from lasagne import layers, nonlinearities
     import numpy as np
-    from collections import OrderedDict
     x_dim = 10
     y_dim = 3
     x_in = layers.InputLayer((None, x_dim))
-    l_hidden = layers.DenseLayer(x_in, num_units=100)
-    l_out = layers.DenseLayer(l_hidden, num_units=y_dim, nonlinearity=nonlinearities.softmax)
+    l_hidden = layers.DenseLayer(x_in, num_units=100, name="hidden")
+    l_out = layers.DenseLayer(
+            l_hidden, num_units=y_dim,
+            nonlinearity=nonlinearities.softmax, name="output")
 
-    model = LightweightModel([x_in], [l_out])
-
+    model = InputOutputMapping([x_in], [l_out])
 
     def loss_function(model, tensors):
         y_pred, = model.get_output(tensors["X"])
@@ -180,17 +225,32 @@ if __name__ == "__main__":
            predict_proba=dict(get_output=lambda model, X: model.get_output(X)[0],
                               params=["X"]),
     )
+    def update_status(self, status):
+        return status
 
-    batch_optimizer = BatchOptimizer(verbose=2)
+    batch_optimizer = make_batch_optimizer(
+        update_status,
+        verbose=2
+    )
+
+    def transform(batch_index, batch_slice, tensors):
+        t = tensors.copy()
+        t["X"] = tensors["X"][batch_slice]
+        t["y"] = tensors["y"][batch_slice]
+        return t
+    batch_iterator = build_batch_iterator(transform)
     capsule = Capsule(input_variables, model,
                       loss_function,
                       functions=functions,
-                      batch_optimizer=batch_optimizer)
+                      batch_optimizer=batch_optimizer,
+                      batch_iterator=batch_iterator,
+                      store_grads_params=True)
 
     from sklearn.datasets import make_classification
-    X, y = make_classification(n_classes=y_dim, n_features=x_dim, n_informative=3)
+    X, y = make_classification(
+            n_classes=y_dim, n_features=x_dim, n_informative=3)
     X = X.astype(np.float32)
     y = y.astype(np.int32)
     capsule.fit(X=X, y=y)
-
-    print((capsule.predict(X)==y).mean())
+    print(capsule._grads.keys(), capsule._layers.keys())
+    print((capsule.predict(X) == y).mean())

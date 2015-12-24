@@ -2,6 +2,7 @@ from __future__ import print_function
 from collections import Iterable, OrderedDict
 
 import sys
+import types
 import pickle
 import copy
 import numpy as np
@@ -669,11 +670,11 @@ class BatchIterator(object):
 
 
 def build_batch_iterator(transform_func):
-    class BatchIterator_(object):
-
-        def transform(self, batch_index, V):
-            return transform_func(batch_index, self.get_slice(batch_index), V)
-    return BatchIterator_()
+    def transform(self, batch_index, V):
+        return transform_func(batch_index, self.get_slice(batch_index), V)
+    batch_iterator = BatchIterator()
+    batch_iterator.transform = types.MethodType(transform, batch_iterator)
+    return batch_iterator
 
 
 def build_simple_batch_iterator(transform_func):
@@ -827,6 +828,16 @@ class BatchOptimizer(object):
                   lambda update_status: self.quitter(update_status),
                   lambda update_status: self.monitor(update_status),
                   lambda monitor_output: self.observer(monitor_output))
+
+def make_batch_optimizer(status_update_func, *args, **kwargs):
+
+    def iter_update(self, *args, **kwargs):
+        status = BatchOptimizer.iter_update(self, *args, **kwargs)
+        status = status_update_func(self, status)
+        return status
+    batch_optimizer = BatchOptimizer(*args, **kwargs)
+    batch_optimizer.iter_update = types.MethodType(iter_update, batch_optimizer)
+    return batch_optimizer
 
 
 class LightweightModel(object):
