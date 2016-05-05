@@ -5,7 +5,7 @@ import lasagnekit
 
 class Fonts(object):
 
-    def __init__(self, kind='all', accept_only=None, labels_kind=None, start=None, stop=None):
+    def __init__(self, kind='all_64', accept_only=None, labels_kind=None, start=None, stop=None):
         self.X = None
         self.y = None
 

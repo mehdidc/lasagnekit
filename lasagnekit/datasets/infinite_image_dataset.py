@@ -1,61 +1,64 @@
 import numpy as np
-
-from lasagnekit.easy import get_1d_to_2d_square_shape
-from skimage import transform as tf
+from realtime_augmentation import fast_warp, random_perturbation_transform
 
 
-def trans_scale_rotate_f(x, **params):
-    imshape = params.get("imshape", get_1d_to_2d_square_shape(x.shape, rgb=params.get("rgb", False)))
-    x_t_max = params.get("x_translate_max", imshape[2] - 1)
-    y_t_max = params.get("y_translate_max", imshape[1] - 1)
-    x_t_max = min(x_t_max, imshape[2] - 1)
-    y_t_max = min(y_t_max, imshape[2] - 1)
+def Transform(X, rng,
+              zoom_range=None,
+              rotation_range=None,
+              shear_range=None, translation_range=None, do_flip=False):
+    if zoom_range is None:
+        zoom_range = (1.0, 1.0)
+    if rotation_range is None:
+        rotation_range = (0, 0)
+    if shear_range is None:
+        shear_range = (0, 0)
+    if translation_range is None:
+        translation_range = (0, 0)
+    h = X.shape[1]
+    w = X.shape[2]
+    X_trans = np.zeros(X.shape, dtype="float32")
+    transf_list = []
+    for i in range(X.shape[0]):
+        transf = random_perturbation_transform(
+                    rng,
+                    zoom_range,
+                    rotation_range,
+                    shear_range,
+                    translation_range, do_flip=do_flip,
+                    w=w, h=h)
+        X_trans[i] = fast_warp(
+            X[i], transf,
+            output_shape=X.shape[1:], mode="constant")
+        transf_list.append(transf)
 
-    x_t_min = params.get("x_translate_min", -x_t_max)
-    y_t_min = params.get("y_translate_min", -y_t_max)
-
-    theta_range = params.get("theta_range", (0., 0.))
-
-    x_scale_range = params.get("x_scale_range", (1., 1.))
-    y_scale_range = params.get("y_scale_range", (1., 1.))
-    x_im = x.reshape(imshape)
-    rnd_stream = params.get("rnd_stream", np.random)
-
-
-    x_t = params.get("x_translate", rnd_stream.randint(x_t_min, x_t_max, size=(x.shape[0],))  )
-    y_t = params.get("y_translate", rnd_stream.randint(y_t_min, y_t_max, size=(x.shape[0],))  )
-    theta_t = params.get("theta", rnd_stream.uniform(theta_range[0], theta_range[1], size=(x.shape[0],))  )
-    x_scale_t = params.get("x_scale", rnd_stream.uniform(x_scale_range[0], x_scale_range[1], size=(x.shape[0],))  )
-    y_scale_t = params.get("y_scale", rnd_stream.uniform(y_scale_range[0], y_scale_range[1], size=(x.shape[0],))  )
-
-    output = params.get("copy_to", x)
-    for i in xrange(x.shape[0]):
-        t = tf.AffineTransform(translation=(x_t[i], y_t[i]), rotation=theta_t[i], scale=(x_scale_t[i], y_scale_t[i]))
-        o = (tf.warp(x_im[i], t))
-        o = o.reshape((np.prod(o.shape),))
-        output[i] = o.astype(output.dtype)
-    params = np.concatenate((x_t[:, np.newaxis], y_t[:, np.newaxis], theta_t[:, np.newaxis], x_scale_t[:, np.newaxis], y_scale_t[:, np.newaxis]), axis=1)
-    return output, params
+    return X_trans, transf_list
 
 
 class InfiniteImageDataset(object):
     online = True
 
-    def __init__(self, initial_X,
-                 initial_y=None,
-                 batch_size=100,
-                 rng=np.random, **params):
-        self.initial_X = initial_X
-        self.initial_y = initial_y
+    def __init__(self,
+                 dataset,
+                 rng=np.random,
+                 **params):
+        self.dataset = dataset
         self.params = params
-        self.batch_size = batch_size
         self.rng = rng
-        self.params["rnd_stream"] = rng
 
     def load(self):
-        s = self.rng.randint(0, self.initial_X.shape[0], size=self.batch_size)
-        samples = self.initial_X[s]
-        self.X, self.X_params = trans_scale_rotate_f(samples, **self.params)
-
-        if self.initial_y is not None:
-            self.y = self.initial_y[s]
+        self.dataset.load()
+        samples = self.dataset.X.reshape((self.dataset.X.shape[0],) + self.dataset.img_dim)
+        color_first = (len(samples.shape) == 4 and samples.shape[1] == 3)
+        if color_first:
+            samples = samples.transpose((0, 2, 3, 1))
+        self.X, self.X_params = Transform(samples, self.rng, **self.params)
+        self.X = self.X.transpose((0, 3, 1, 2))
+        self.X = self.X.reshape((self.X.shape[0], -1))
+        if hasattr(self.dataset, "y"):
+            self.y = self.dataset.y
+        if hasattr(self.dataset, "img_dim"):
+            self.img_dim = self.dataset.img_dim
+        if hasattr(self.dataset, "output_dim"):
+            self.output_dim = self.dataset.output_dim
+        if hasattr(self.dataset, "y_raw"):
+            self.y_raw = self.dataset.y_raw

@@ -4,7 +4,6 @@ from skimage.io import imread
 import numpy as np
 from skimage.transform import resize
 
-
 class ImageCollection(object):
 
     online = True
@@ -14,7 +13,9 @@ class ImageCollection(object):
                  folder=None,
                  filename_to_label=None,
                  process_dirs=None,
-                 verbose=0):
+                 recur=False,
+                 verbose=1,
+                 **kwargs):
         if not hasattr(self, "folder"):
             assert folder is not None
             self.folder = folder
@@ -28,9 +29,18 @@ class ImageCollection(object):
                 def process_dirs(dirs):
                     return filter(lambda d: os.path.isdir(d), dirs)
             self.process_dirs = process_dirs
-        path = os.path.join(os.getenv("DATA_PATH"), self.folder)
-        all_dirs = map(lambda d: path + "/" + d, os.listdir(path))
-        self.all_dirs = self.process_dirs(all_dirs)
+
+        path = os.path.join(self.folder)
+
+        if recur:
+            directories = (root for root, _, _ in os.walk(path))
+            all_dirs = list(directories)
+        else:
+            directories = os.listdir(path)
+            all_dirs = map(lambda d: path + "/" + d, directories)
+
+        all_dirs = self.process_dirs(all_dirs)
+        self.all_dirs = all_dirs
 
         self.mode = mode
         self.rng = RandomState(random_state)
@@ -47,10 +57,27 @@ class ImageCollection(object):
     def load(self):
         X = []
         y = []
+        if self.mode == 'random':
+            def get_next():
+                while True:
+                    d = self.rng.choice(self.all_dirs)
+                    filenames = os.listdir(d)
+                    filename = self.rng.choice(filenames)
+                    yield d, filename
+
+        elif self.mode == 'all':
+            def get_next():
+                for d in self.all_dirs:
+                    for filename in os.listdir(d):
+                        yield d, filename
+        else:
+            raise Exception("invalid mode : {}".format(self.mode))
+        get_next_iter = get_next()
         while len(X) < self.nb:
-            d = self.rng.choice(self.all_dirs)
-            filenames = os.listdir(d)
-            filename = self.rng.choice(filenames)
+            try:
+                d, filename =  next(get_next_iter)
+            except StopIteration:
+                break
             try:
                 x = imread(d + "/" + filename)
                 h, w = x.shape[0:2]

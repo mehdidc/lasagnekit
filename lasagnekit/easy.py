@@ -46,7 +46,8 @@ def get_iter_update_supervision(inputs, outputs, t_X_batch, t_y_batch,
         t_y_batch: outputs[t_batch_slice],
     }
     if sample_weight is None:
-        givens[t_sample_weight] = T.as_tensor_variable(np.array(1., dtype=theano.config.floatX))
+        givens[t_sample_weight] = T.as_tensor_variable(
+            np.array(1., dtype=theano.config.floatX))
     else:
         givens[t_sample_weight] = sample_weight[t_batch_slice]
 
@@ -162,6 +163,7 @@ def main_loop(max_nb_epochs, iter_update, quitter, monitor, observer):
         if quitter(update_status):
             break
 
+
 def get_1d_to_2d_square_shape(shape, rgb=False):
     if len(shape) == 2:
         if rgb == True:
@@ -185,7 +187,7 @@ nonlinearities_from_str = {
     'softmax': nonlinearities.softmax,
     'tanh': nonlinearities.tanh,
     'sigmoid': nonlinearities.sigmoid,
-    'log': lambda x: (x>=1)*T.log(x)
+    'log': lambda x: (x >= 1) * T.log(x)
 }
 
 
@@ -271,7 +273,7 @@ class SimpleNeuralNet(object):
         self._output_softener_coefs = None
 
     def __getstate__(self):
-        d =  {}
+        d = {}
         d.update(self.__dict__)
         del d["_iter_update_batch"]
         return d
@@ -319,20 +321,21 @@ class SimpleNeuralNet(object):
                 else:
                     pass
             else:
-                cur_layer = lasagne.layers.NonlinearityLayer(cur_layer, activation)
+                cur_layer = lasagne.layers.NonlinearityLayer(
+                    cur_layer, activation)
 
         # output layer
 
         if (self.initbiases_list is not None and
-            len(self.initbiases_list) == len(self.nb_hidden_list) + 1 and
-            self.initbiases_list[-1] is not None):
+                len(self.initbiases_list) == len(self.nb_hidden_list) + 1 and
+                self.initbiases_list[-1] is not None):
             b = self.initbiases_list[-1]
         else:
             b = init.Constant(0.)
 
         if (self.initweights_list is not None and
-            len(self.initweights_list) == len(self.nb_hidden_list) + 1 and
-            self.initweights_list[-1] is not None):
+                len(self.initweights_list) == len(self.nb_hidden_list) + 1 and
+                self.initweights_list[-1] is not None):
             W = self.initweights_list[-1]
         else:
             W = init.GlorotUniform()
@@ -340,27 +343,31 @@ class SimpleNeuralNet(object):
             if self.output_softener != 1.:
 
                 cur_layer = layers.DenseLayer(
-                    cur_layer, num_units = y_dim, nonlinearity=nonlinearities.linear, W=W, b=b)
+                    cur_layer, num_units=y_dim, nonlinearity=nonlinearities.linear, W=W, b=b)
 
                 if self.output_softener == 'learned':
-                    self._output_softener_coefs = theano.shared(np.ones((y_dim,)).astype(theano.config.floatX))
-                    cur_layer = layers.NonlinearityLayer(cur_layer, lambda x:x*self._output_softener_coefs)
+                    self._output_softener_coefs = theano.shared(
+                        np.ones((y_dim,)).astype(theano.config.floatX))
+                    cur_layer = layers.NonlinearityLayer(
+                        cur_layer, lambda x: x * self._output_softener_coefs)
                 else:
-                    cur_layer = layers.NonlinearityLayer(cur_layer, lambda x:x*self.output_softener)
-                cur_layer = layers.NonlinearityLayer(cur_layer, nonlinearities.softmax)
+                    cur_layer = layers.NonlinearityLayer(
+                        cur_layer, lambda x: x * self.output_softener)
+                cur_layer = layers.NonlinearityLayer(
+                    cur_layer, nonlinearities.softmax)
 
             else:
                 cur_layer = layers.DenseLayer(
-                    cur_layer, num_units = y_dim, nonlinearity=nonlinearities.softmax, W=W, b=b)
+                    cur_layer, num_units=y_dim, nonlinearity=nonlinearities.softmax, W=W, b=b)
         else:
             cur_layer = layers.DenseLayer(
-                cur_layer, num_units = y_dim, nonlinearity=nonlinearities.linear, W=W, b=b)
+                cur_layer, num_units=y_dim, nonlinearity=nonlinearities.linear, W=W, b=b)
         return cur_layer
 
     def _build_prediction_functions(self, X_batch, prediction_layer):
 
         output_testing_phase = layers.get_output(prediction_layer,
-            X_batch, deterministic=True)
+                                                 X_batch, deterministic=True)
         if self.is_classification:
             pred = T.argmax(output_testing_phase, axis=1)
         else:
@@ -382,7 +389,8 @@ class SimpleNeuralNet(object):
             y = self._class_label_encoder.transform(y).astype(y.dtype)
             self.y_train_transformed = y
             if y_valid is not None:
-                y_valid_transformed = self._class_label_encoder.transform(y_valid).astype(y_valid.dtype)
+                y_valid_transformed = self._class_label_encoder.transform(
+                    y_valid).astype(y_valid.dtype)
 
         self._l_x_in = layers.InputLayer(shape=(None, X.shape[1]))
         batch_index, X_batch, y_batch, batch_slice = get_theano_batch_variables(
@@ -403,13 +411,12 @@ class SimpleNeuralNet(object):
         self._layers = layers.get_all_layers(self._prediction_layer)
         self._build_prediction_functions(X_batch, self._prediction_layer)
 
-
         if self.input_noise_function is None:
-            output = layers.get_output( self._prediction_layer, X_batch )
+            output = layers.get_output(self._prediction_layer, X_batch)
 
         else:
             X_batch_noisy = self.input_noise_function(X_batch)
-            output = layers.get_output( self._prediction_layer, X_batch_noisy )
+            output = layers.get_output(self._prediction_layer, X_batch_noisy)
 
         if self.is_classification:
             loss = -T.mean(t_sample_weight * T.log(output)
@@ -424,7 +431,8 @@ class SimpleNeuralNet(object):
         if self._output_softener_coefs is not None:
             all_params.append(self._output_softener_coefs)
 
-        W_params = layers.get_all_param_values(self._prediction_layer, regularizable=True)
+        W_params = layers.get_all_param_values(
+            self._prediction_layer, regularizable=True)
 
         # regularization
         if self.L1_factor is not None:
@@ -434,7 +442,6 @@ class SimpleNeuralNet(object):
         if self.L2_factor is not None:
             for L2_factor_layer, W in zip(self.L2_factor, W_params):
                 loss = loss + L2_factor_layer * T.sum(W**2)
-
 
         if self.optimization_method == 'nesterov_momentum':
             gradient_updates = updates.nesterov_momentum(loss, all_params, learning_rate=self.learning_rate,
@@ -478,17 +485,18 @@ class SimpleNeuralNet(object):
             X_shared = theano.shared(X, borrow=True)
             y_shared = theano.shared(y, borrow=True)
 
-
-            givens={
+            givens = {
                 X_batch: X_shared[batch_slice],
-                y_batch : y_shared[batch_slice]
+                y_batch: y_shared[batch_slice]
             }
 
             if sample_weight is not None:
-                sample_weight_shared = theano.shared(sample_weight, borrow=True)
+                sample_weight_shared = theano.shared(
+                    sample_weight, borrow=True)
                 givens[t_sample_weight] = sample_weight_shared[batch_slice]
             else:
-                givens[t_sample_weight] = T.as_tensor_variable(np.array(1., dtype=theano.config.floatX))
+                givens[t_sample_weight] = T.as_tensor_variable(
+                    np.array(1., dtype=theano.config.floatX))
 
             iter_update_batch = theano.function(
                 [batch_index], loss,
@@ -499,26 +507,29 @@ class SimpleNeuralNet(object):
         else:
             if sample_weight is None:
                 iter_update_gradients = theano.function(
-                        [X_batch, y_batch],
-                        loss,
-                        updates=gradient_updates,
-                        givens={t_sample_weight: T.as_tensor_variable(np.array(1., dtype=theano.config.floatX))},
+                    [X_batch, y_batch],
+                    loss,
+                    updates=gradient_updates,
+                    givens={t_sample_weight: T.as_tensor_variable(
+                        np.array(1., dtype=theano.config.floatX))},
 
                 )
+
                 def iter_update_batch(batch_index):
                     sl = slice(batch_index * self.batch_size,
-                               (batch_index+1) * self.batch_size)
+                               (batch_index + 1) * self.batch_size)
                     return iter_update_gradients(X[sl], y[sl])
 
             else:
                 iter_update_gradients = theano.function(
-                        [X_batch, y_batch, t_sample_weight],
-                        loss,
-                        updates=gradient_updates
+                    [X_batch, y_batch, t_sample_weight],
+                    loss,
+                    updates=gradient_updates
                 )
+
                 def iter_update_batch(batch_index):
                     sl = slice(batch_index * self.batch_size,
-                                    (batch_index+1) * self.batch_size)
+                               (batch_index + 1) * self.batch_size)
                     return iter_update_gradients(X[sl], y[sl], sample_weight[sl])
         self._iter_update_batch = iter_update_batch
         self._get_loss = theano.function(
@@ -542,15 +553,19 @@ class SimpleNeuralNet(object):
             #d["loss_train_std"] = losses.std()
 
             #d["loss_train"] = losses.mean()
-            d["loss_train"] = self._get_loss(self.X_train, self.y_train_transformed, 1.)
+            d["loss_train"] = self._get_loss(
+                self.X_train, self.y_train_transformed, 1.)
 
-            d["accuracy_train"] = (self.predict(self.X_train) == self.y_train).mean()
+            d["accuracy_train"] = (
+                self.predict(self.X_train) == self.y_train).mean()
 
             if X_valid is not None and y_valid is not None:
-                d["loss_valid"] = self._get_loss(X_valid, y_valid_transformed, 1.)
+                d["loss_valid"] = self._get_loss(
+                    X_valid, y_valid_transformed, 1.)
 
                 if self.is_classification == True:
-                    d["accuracy_valid"] = (self.predict(X_valid) == y_valid).mean()
+                    d["accuracy_valid"] = (
+                        self.predict(X_valid) == y_valid).mean()
 
             if self.verbose > 0:
                 if (epoch % self.report_each) == 0:
@@ -575,13 +590,15 @@ class SimpleNeuralNet(object):
 
                     if self.verbose >= 2:
                         fmt = "--Early stopping-- good we have a new best value : {0}={1}, last best : epoch {2}, value={3}"
-                        print(fmt.format(self.patience_stat, cur_patience_stat, self.cur_best_epoch, self.cur_best_patience_stat))
+                        print(fmt.format(self.patience_stat, cur_patience_stat,
+                                         self.cur_best_epoch, self.cur_best_patience_stat))
                     self.cur_best_epoch = cur_epoch
                     self.cur_best_patience_stat = cur_patience_stat
                     if hasattr(self, "set_state") and hasattr(self, "get_state"):
                         self.cur_best_model = self.get_state()
                     else:
-                        self.cur_best_model = pickle.dumps(self.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
+                        self.cur_best_model = pickle.dumps(
+                            self.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
                 if (cur_epoch - self.cur_best_epoch) >= self.patience_nb_epochs:
                     finish = True
                     if hasattr(self, "set_state") and hasattr(self, "get_state"):
@@ -591,13 +608,13 @@ class SimpleNeuralNet(object):
 
                     self._stats = self._stats[0:self.cur_best_epoch + 1]
                     if self.verbose >= 2:
-                        print("out of patience...take the model at epoch {0} and quit".format(self.cur_best_epoch + 1))
+                        print("out of patience...take the model at epoch {0} and quit".format(
+                            self.cur_best_epoch + 1))
                 else:
                     finish = False
                 return finish
             else:
                 return False
-
 
         def monitor(update_status):
             pass
@@ -608,7 +625,7 @@ class SimpleNeuralNet(object):
         return (iter_update, quitter, monitor, observer)
 
     def fit(self, X, y, X_valid=None, y_valid=None, sample_weight=None,
-                        whole_dataset_in_device=True):
+            whole_dataset_in_device=True):
 
         if self.validation_set_ratio is not None and X_valid is None and y_valid is None:
             sp = train_test_split(X, y, test_size=self.validation_set_ratio)
@@ -617,8 +634,8 @@ class SimpleNeuralNet(object):
 
         self.X_train, self.y_train = X, y
 
-        main_loop_funcs = self._prepare(X, y, X_valid, y_valid, sample_weight, whole_dataset_in_device)
-
+        main_loop_funcs = self._prepare(
+            X, y, X_valid, y_valid, sample_weight, whole_dataset_in_device)
 
         main_loop(self.max_nb_epochs, *main_loop_funcs)
         return self
@@ -658,7 +675,7 @@ class BatchIterator(object):
                                           self.batch_size)
         else:
             batch_slice = slice(batch_index * self.batch_size,
-                                (batch_index+1) * self.batch_size)
+                                (batch_index + 1) * self.batch_size)
         return batch_slice
 
     def transform(self, batch_index, V):
@@ -743,7 +760,8 @@ class BatchOptimizer(object):
         for i in range(nb_batches):
             batch_loss = iter_update_batch(i)
             losses.append(batch_loss)
-            self.monitor_batch(dict(batch_loss=batch_loss, batch_index=i, total_nb_batches=(i + 1)*(epoch+1)))
+            self.monitor_batch(dict(
+                batch_loss=batch_loss, batch_index=i, total_nb_batches=(i + 1) * (epoch + 1)))
         losses = np.array(losses)
 
         stat = OrderedDict()
@@ -760,7 +778,7 @@ class BatchOptimizer(object):
         cur_epoch = len(self.stats) - 1
         if cur_epoch < self.min_nb_epochs:
             return False
-        if self.patience_nb_epochs > 0 and (cur_epoch % self.patience_check_each)==0:
+        if self.patience_nb_epochs > 0 and (cur_epoch % self.patience_check_each) == 0:
             # patience heuristic (for early stopping)
             cur_patience_stat = update_status[self.patience_stat]
 
@@ -775,23 +793,27 @@ class BatchOptimizer(object):
 
                 if self.verbose >= 2:
                     fmt = "--Early stopping-- good we have a new best value : {0}={1}, last best : epoch {2}, value={3}"
-                    print(fmt.format(self.patience_stat, cur_patience_stat, self.cur_best_epoch, self.cur_best_patience_stat))
+                    print(fmt.format(self.patience_stat, cur_patience_stat,
+                                     self.cur_best_epoch, self.cur_best_patience_stat))
                 self.cur_best_epoch = cur_epoch
                 self.cur_best_patience_stat = cur_patience_stat
                 if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
                     self.cur_best_model = self.model.get_state()
                 else:
-                    self.cur_best_model = pickle.dumps(self.model.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
+                    self.cur_best_model = pickle.dumps(
+                        self.model.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
             if (cur_epoch - self.cur_best_epoch) >= self.patience_nb_epochs:
                 finish = True
                 if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
                     self.model.set_state(self.cur_best_model)
                 else:
-                    self.model.__dict__.update(pickle.loads(self.cur_best_model))
+                    self.model.__dict__.update(
+                        pickle.loads(self.cur_best_model))
 
                 self.stats = self.stats[0:self.cur_best_epoch + 1]
                 if self.verbose >= 2:
-                    print("out of patience...take the model at epoch {0} and quit".format(self.cur_best_epoch + 1), file=self.verbose_out)
+                    print("out of patience...take the model at epoch {0} and quit".format(
+                        self.cur_best_epoch + 1), file=self.verbose_out)
             else:
                 finish = False
             return finish
@@ -803,7 +825,7 @@ class BatchOptimizer(object):
             stat = self.stats[-1]
             if (stat["epoch"] % self.report_each) == 0:
                 from tabulate import tabulate
-                stat_ = dict()
+                stat_ = OrderedDict()
                 if self.verbose_stat_show is not None:
                     for k in self.verbose_stat_show:
                         stat_[k] = stat[k]
@@ -829,6 +851,29 @@ class BatchOptimizer(object):
                   lambda update_status: self.monitor(update_status),
                   lambda monitor_output: self.observer(monitor_output))
 
+    def add_moving_avg(self, name, status, B=0.9):
+        if len(self.stats) >= 2:
+            old_avg = self.stats[-2]["moving_avg_" + name]
+        else:
+            old_avg = 0
+        avg = B * old_avg + (1 - B) * status[name]
+        status["moving_avg_" + name] = avg
+        return status
+
+    def add_moving_var(self, name, status, B=0.9):
+        if len(self.stats) >= 2:
+            old_avg = self.stats[-2]["moving_avg_" + name]
+            old_var = self.stats[-2]["moving_var_" + name]
+        else:
+            old_avg = 0
+            old_var = 0
+        new_avg = B * old_avg + (1 - B) * status[name]
+        var = B * old_var + (1 - B) * (status[name] - old_avg) * (status[name] - new_avg)
+        status["moving_var_" + name] = var
+        return status
+
+
+
 def make_batch_optimizer(status_update_func, *args, **kwargs):
 
     def iter_update(self, *args, **kwargs):
@@ -836,9 +881,22 @@ def make_batch_optimizer(status_update_func, *args, **kwargs):
         status = status_update_func(self, status)
         return status
     batch_optimizer = BatchOptimizer(*args, **kwargs)
-    batch_optimizer.iter_update = types.MethodType(iter_update, batch_optimizer)
+    batch_optimizer.iter_update = types.MethodType(
+        iter_update, batch_optimizer)
     return batch_optimizer
 
+def exp_moving_avg(stats, stat_name, stat_avg_name, status, B=0.9):
+    loss = stat_name
+    loss_avg = stat_avg_name
+    if len(stats) == 1:
+        last_avg = 0
+    else:
+        last_avg = stats[-2][loss_avg]
+    status[loss_avg] = B * last_avg + (1 - B) * status[loss]
+    t = status["epoch"]
+    fix = 1 - B ** (1 + t) # like in Adam
+    status[loss_avg + "_fix"] = status[loss_avg] / fix
+    return status
 
 class LightweightModel(object):
 
@@ -866,10 +924,9 @@ class LightweightModel(object):
         return list(set(param
                         for output_layer in self.output_layers
                         for param in (
-                        layers.helper.get_all_params(output_layer, **kwargs))))
+                            layers.helper.get_all_params(output_layer, **kwargs))))
 
 InputOutputMapping = LightweightModel
-
 
 
 # Taken from pylearn2
@@ -917,6 +974,7 @@ def log_sum_exp(A=None, axis=None, log_A=None):
         return B.dimshuffle([i for i in range(B.ndim) if
                              i % B.ndim not in axis])
 
+
 class InitializerFrom(object):
 
     def __init__(self, W):
@@ -929,12 +987,15 @@ class InitializerFrom(object):
         assert shape == self.W.shape
         return self.W
 
+
 def get_stat(name, stats):
     return [stat[name] for stat in stats]
 
 # Source : https://github.com/Lasagne/Lasagne/issues/193
+
+
 def maxout(incoming, ds):
-    #l1a = layers.DenseLayer(incoming, nonlinearity=None,
+    # l1a = layers.DenseLayer(incoming, nonlinearity=None,
     #                        num_units=num_units * ds, **kwargs)
     l1 = layers.FeaturePoolLayer(incoming, ds)
     return l1
@@ -959,9 +1020,10 @@ def channel_out(block_size):
         w = p.reshape((batch_size, num_blocks, block_size))
         block_max = w.max(axis=2).dimshuffle(0, 1, 'x') * T.ones_like(w)
         max_mask = T.cast(w >= block_max, 'float32')
-        indices = np.array(range(1, block_size+1))
+        indices = np.array(range(1, block_size + 1))
         max_mask2 = max_mask * indices
-        block_max2 = max_mask2.max(axis=2).dimshuffle(0, 1, 'x') * T.ones_like(w)
+        block_max2 = max_mask2.max(axis=2).dimshuffle(
+            0, 1, 'x') * T.ones_like(w)
         max_mask3 = T.cast(max_mask2 >= block_max2, 'float32')
         w2 = w * max_mask3
         w3 = w2.reshape((p.shape[0], p.shape[1]))
@@ -971,7 +1033,7 @@ def channel_out(block_size):
 
 def get_nb_batches(nb_examples, batch_size):
     nb_batches = nb_examples // batch_size
-    if (nb_examples  % batch_size) > 0:
+    if (nb_examples % batch_size) > 0:
         nb_batches += 1
     return nb_batches
 
@@ -980,7 +1042,7 @@ def iterate_minibatches(nb_inputs, batchsize, shuffle=False):
     if shuffle:
         indices = np.arange(nb_inputs)
         np.random.shuffle(indices)
-    for start_idx in range(0, nb_inputs- batchsize + 1, batchsize):
+    for start_idx in range(0, max(nb_inputs, nb_inputs - batchsize + 1), batchsize):
         if shuffle:
             excerpt = indices[start_idx:start_idx + batchsize]
         else:
@@ -994,11 +1056,12 @@ def compute_over_minibatches(function, nb_inputs, batchsize, shuffle=False):
 
 
 def layers_from_list_to_dict(layers_list):
-    names = dict()
+    names = OrderedDict()
     for layer in layers_list:
         assert layer.name is not None
         names[layer.name] = layer
     return names
+
 
 if __name__ == "__main__":
 

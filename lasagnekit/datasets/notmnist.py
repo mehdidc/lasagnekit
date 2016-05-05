@@ -18,3 +18,4 @@ class NotMNIST(object):
         y = y.astype(np.int32)
         self.X = X
         self.y = y
+        self.img_dim = (28, 28)

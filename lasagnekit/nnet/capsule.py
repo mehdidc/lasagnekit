@@ -89,13 +89,7 @@ class Capsule(object):
         for name in self.input_variables.keys():
             V_[name] = V[name]
         V = V_
-        if "X" in V:
-            X = V["X"]
-        else:
-            X = V[V.keys()[0]]
 
-        self.nb_batches = get_nb_batches(len(X),
-                                         self.batch_optimizer.batch_size)
         if self.built is False:
             self._build(V)
         self.V = V
@@ -119,10 +113,19 @@ class Capsule(object):
             setattr(self, name, func)
 
     def _build(self, V):
+
+        if "X" in V:
+            X = V["X"]
+        else:
+            X = V[V.keys()[0]]
+
+        self.nb_batches = get_nb_batches(len(X),
+                                         self.batch_optimizer.batch_size)
+
         self._build_functions()
         v_tensors = self.v_tensors
-        all_params = self.model.get_all_params()
-        all_params_regularizable = self.model.get_all_params(regularizable=True)
+        all_params = self.model.get_all_params(trainable=True)
+        all_params_regularizable = self.model.get_all_params(trainable=True,regularizable=True)
         self.all_params = all_params
         self.all_params_regularizable = all_params_regularizable
 
@@ -131,7 +134,7 @@ class Capsule(object):
             loss, updates = r
         else:
             loss = r
-            updates = OrderedDict()
+            updates = []
         self.loss = loss
 
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
@@ -143,7 +146,9 @@ class Capsule(object):
             grads = [DebugPrint(name=g.name, store=self._grads)(g)
                      for g in grads]
         # update
-        updates.update(opti_function(grads, all_params, **opti_kwargs))
+        updates.extend(opti_function(grads, all_params, **opti_kwargs).items())
+        # for u in updates:
+        #    print(type(u), u, len(u))
         self.updates = updates
 
         batch_index = T.iscalar('batch_index')

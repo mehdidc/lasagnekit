@@ -2,16 +2,15 @@ import os
 from .imagecollection import ImageCollection
 
 
-class Chairs(ImageCollection):
+class FlatIcon(ImageCollection):
     folder = os.path.join(os.getenv("DATA_PATH"),
-                          "chairs",
-                          "rendered_chairs")
-    output_dim = 1393
+                          "flaticon")
+    output_dim = 500
 
     def process_dirs(self, dirs):
         dirs = filter(lambda d: os.path.isdir(d), dirs)
         self.dir_to_label = {d: i for i, d in enumerate(dirs)}
-        dirs = map(lambda d: d + "/renders", dirs)
+        dirs = map(lambda d: d + "/png", dirs)
         return dirs
 
     def filename_to_label(self, directory, filename=""):

@@ -1,7 +1,7 @@
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 import theano
-
+from collections import OrderedDict
 from .. import easy
 
 def cross_entropy(y_pred, y, **params):
@@ -88,7 +88,7 @@ class NeuralNet(object):
 
         opti_function, opti_kwargs = self.batch_optimizer.optimization_procedure
 
-        optional_params = dict()
+        optional_params = OrderedDict()
         optional_params["X_batch"] = X_batch
         optional_params["y_batch"] = y_batch
         optional_params.update(self.loss_params)
@@ -101,6 +101,7 @@ class NeuralNet(object):
         L = [X_batch, y_batch]
         if optional is not None:
             L.extend(optional_tensors.values())
+        print(optional_tensors.keys())
         self.get_loss = theano.function(L, loss)
 
         updates = opti_function(loss, self.all_params, **opti_kwargs)
