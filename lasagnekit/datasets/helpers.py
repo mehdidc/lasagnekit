@@ -29,7 +29,7 @@ def split(dataset, test_size=0.5, random_state=None):
     indices_test = indices[nb_train:]
 
     X = dataset.X[indices_train]
-    if hasattr(dataset, 'y'):
+    if hasattr(dataset, 'y') and dataset.y is not None:
         y = dataset.y[indices_train]
     else:
         y = None
@@ -40,7 +40,7 @@ def split(dataset, test_size=0.5, random_state=None):
         dataset_train.output_dim = dataset.output_dim
 
     X = dataset.X[indices_test]
-    if hasattr(dataset, 'y'):
+    if hasattr(dataset, 'y') and dataset.y is not None:
         y = dataset.y[indices_test]
     else:
         y = None

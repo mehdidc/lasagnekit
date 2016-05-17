@@ -712,6 +712,7 @@ class BatchOptimizer(object):
                  patience_nb_epochs=-1,
                  patience_progression_rate_threshold=1.,
                  patience_stat="loss_train",
+                 patience_save_best=False,
                  patience_check_each=1,
                  optimization_procedure=None,
                  whole_dataset_in_device=False,
@@ -727,7 +728,7 @@ class BatchOptimizer(object):
         self.patience_progression_rate_threshold = patience_progression_rate_threshold
         self.patience_stat = patience_stat
         self.patience_check_each = patience_check_each
-
+        self.patience_save_best = patience_save_best
         self.cur_best_patience_stat = None
         self.cur_best_model = None
         self.cur_best_epoch = None
@@ -797,23 +798,24 @@ class BatchOptimizer(object):
                                      self.cur_best_epoch, self.cur_best_patience_stat))
                 self.cur_best_epoch = cur_epoch
                 self.cur_best_patience_stat = cur_patience_stat
-                if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
-                    self.cur_best_model = self.model.get_state()
-                else:
-                    self.cur_best_model = pickle.dumps(
-                        self.model.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
+                if self.patience_save_best:
+                    if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
+                        self.cur_best_model = self.model.get_state()
+                    else:
+                        self.cur_best_model = pickle.dumps(
+                            self.model.__dict__, protocol=pickle.HIGHEST_PROTOCOL)
             if (cur_epoch - self.cur_best_epoch) >= self.patience_nb_epochs:
                 finish = True
-                if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
-                    self.model.set_state(self.cur_best_model)
-                else:
-                    self.model.__dict__.update(
-                        pickle.loads(self.cur_best_model))
+                if self.patience_save_best:
+                    if hasattr(self.model, "set_state") and hasattr(self.model, "get_state"):
+                        self.model.set_state(self.cur_best_model)
+                    else:
+                        self.model.__dict__.update(
+                            pickle.loads(self.cur_best_model))
 
-                self.stats = self.stats[0:self.cur_best_epoch + 1]
-                if self.verbose >= 2:
-                    print("out of patience...take the model at epoch {0} and quit".format(
-                        self.cur_best_epoch + 1), file=self.verbose_out)
+                    self.stats = self.stats[0:self.cur_best_epoch + 1]
+                    if self.verbose >= 2:
+                        print("out of patience...take the model at epoch {1} and quit".format(self.cur_best_epoch + 1), file=self.verbose_out)
             else:
                 finish = False
             return finish
